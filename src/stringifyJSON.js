@@ -4,74 +4,80 @@
 // but you don't so you're going to write it from scratch:
 
 var stringifyJSON = function( obj ) {
-  var isValidObj = function( object ) {
+  var getType = function ( object ) {
     var type = typeof object;
-    return ( type === 'object' &&
-             object !== null );
+    if ( Array.isArray( object ) ) {
+      return 'array';
+    } else if ( object !== null &&
+                type   === 'object' ) {
+      return 'object';
+    } else if ( type === 'string' ) {
+      return type;
+    } else if ( type   !== 'undefined' &&
+                type   !== 'function' ) {
+      return 'simpleObj';
+    } else {
+      return 'invalid';
+    }
   };
 
-  var isInvalidObj = function( object ) {
-    var type = typeof object;
-    return ( type === 'function' ||
-             type === 'undefined' );
+  var quotify = function ( string ) {
+    return '"' + string + '"';
   };
 
-  var isValidNonObj = function( object ) {
-    var type = typeof object;
-    return ( object === null ||
-     ( type !== 'undefined' &&
-       type !== 'function' &&
-       type !== 'object' ) );
-  };
+  var stringmogrify = function( obj ) {
+    var type = getType( obj );
+    var isValid = ( type !== 'invalid' );
+    var jsonString = '';
+    var commaSeparator = [];
+    var objectBuilder = '';
+    var valType;
 
-  var stringer = function( obj ) {
-    var result = '';
-    var temp = [];
-    var temp2;
-    var skip;
-    if ( Array.isArray(obj) ) {
-      result += "[";
-      obj.forEach(function(e) {
-        if( isValidObj( e ) ) {
-          temp.push( stringer(e) );
-        } else if ( typeof e === 'string' ) {
-          temp.push('"' + e + '"');
+    if ( type === 'array' ) {
+      obj.forEach( function( value ) {
+        valType = getType( value );
+
+        if ( valType === 'invalid' ) {
+          // skip it
+        } else if ( valType === 'string' ) {
+          commaSeparator.push( quotify(value) );
+        } else if ( valType === 'simpleObj' ) {
+          commaSeparator.push( String( value ) );
         } else {
-          temp.push(String(e));
+          commaSeparator.push( stringmogrify( value ) );
         }
-      });
-      result += temp.join();
-      result += "]";
-    } else if ( isValidObj(obj) ) {
-      result += "{";
+      } );
+      jsonString += "[" + commaSeparator.join() + "]";
+    } else if ( type === 'object' ) {
       var keys = Object.keys( obj );
+
       keys.forEach( function( key ) {
-        temp2 = [('"' + key + '":')];
-        if ( isInvalidObj( obj[key] ) ) {
-          skip = true;
-        } else if( isValidObj( obj[key] ) ) {
-          temp2.push( stringer( obj[key] ) );
-        } else if ( typeof obj[key] === 'string' ) {
-          temp2.push('"' + obj[key] + '"');
+        valType = getType( obj[key] );
+        objectBuilder = quotify( key ) + ":";
+        if ( valType === 'invalid' ) {
+          // lets function skip it
+          objectBuilder = '';
+        } else if ( valType === 'string' ) {
+          objectBuilder += quotify( obj[key] );
+        } else if ( valType === 'simpleObj' ) {
+          objectBuilder += String( obj[key] );
         } else {
-          temp2.push(String( obj[key] ));
+          objectBuilder += stringmogrify( obj[key] );
         }
-        temp.push(temp2.join(''));
-      });
-      result += temp.join();
-      result += "}";
-      if ( skip ) { result = '{}'; }
-    } else if ( isValidNonObj( obj ) ) {
-      if ( typeof obj === 'string' ) {
-        result += '"' + obj + '"';
-      } else {
-        result += String( obj );
-      }
+        commaSeparator.push( objectBuilder );
+      } );
+      jsonString += "{" + commaSeparator.join() + "}";
+    } else if ( type === 'string' ) {
+      jsonString += quotify( obj );
+    } else if ( type === 'simpleObj' ){
+      jsonString += String( obj );
     }
 
-    return result;
+    return jsonString;
   };
 
-  return stringer( obj );
+  return stringmogrify( obj );
 };
 
+
+stringifyJSON([]);
